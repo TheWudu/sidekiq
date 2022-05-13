@@ -4,8 +4,6 @@ require "singleton"
 
 module Sidekiq
   class Throttle
-    include Singleton
-
     class << self
       def add(queue, concurrency)
         key = "queue:#{queue}"
