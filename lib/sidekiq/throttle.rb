@@ -33,6 +33,7 @@ module Sidekiq
       def run(job, &block)
         running(job.queue)
         block.call(job)
+      ensure
         done(job.queue)
       end
 
