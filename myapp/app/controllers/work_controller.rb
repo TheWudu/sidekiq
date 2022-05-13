@@ -32,7 +32,7 @@ class WorkController < ApplicationController
 
   def throttle
     50.times do |x|
-      ThrottledWorker.perform_async("bob#{x}", 5 + rand(20), x)
+      ThrottledWorker.perform_async("bob#{x}", rand(20), x)
     end
     render :plain => 'enqueued'
   end

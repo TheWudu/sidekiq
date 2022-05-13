@@ -73,6 +73,7 @@ module Sidekiq
       @mgr.processor_died(self, ex)
     end
 
+
     def process_one
       @job = fetch
       return unless @job
