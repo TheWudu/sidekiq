@@ -5,6 +5,8 @@ require "singleton"
 module Sidekiq
   class Throttle
     class << self
+      EXPIRE_TTL = 600
+
       def add(queue, concurrency)
         key = "queue:#{queue}"
         Sidekiq.redis { |c| c.hset("throttle:concurrencies", key, concurrency) }
@@ -20,12 +22,16 @@ module Sidekiq
 
       def running(queue)
         return unless concurrencies.key?(queue)
-        Sidekiq.redis { |c| c.hincrby("throttle:currently_running", queue, 1) }
+        key = current_key(queue)
+        redis.incrby(key, 1)
+        redis.expire(key, EXPIRE_TTL)
       end
 
       def done(queue)
         return unless concurrencies.key?(queue)
-        Sidekiq.redis { |c| c.hincrby("throttle:currently_running", queue, -1) }
+        key = current_key(queue)
+        redis.incrby(key, -1)
+        redis.expire(key, EXPIRE_TTL)
       end
 
       def run(job, &block)
@@ -35,12 +41,23 @@ module Sidekiq
         done(job.queue)
       end
 
+      def current_key(queue)
+        "throttle:current:#{queue}"
+      end
+
       def current_workset
-        Sidekiq.redis { |c| c.hgetall("throttle:currently_running") }
+        redis.keys("throttle:current:*").each_with_object({}) do |key, h|
+          queue = key.gsub("throttle:current:","")
+          h[queue] = redis.get(key)
+        end
       end
 
       def concurrencies
         Sidekiq.redis { |c| c.hgetall("throttle:concurrencies") }.transform_values!(&:to_i)
+      end
+
+      def redis
+        Sidekiq.redis { |c| c }
       end
     end
   end
